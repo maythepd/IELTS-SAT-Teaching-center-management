@@ -1,0 +1,150 @@
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+export async function browserFlows({ apiURL, run, email, password, tokenFor, teacherId, query }) {
+  const baseURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const failures = [];
+  const contexts = [];
+  const output = new URL('./artifacts/browser-flows/', import.meta.url);
+  await fs.mkdir(output, { recursive: true });
+  async function signIn(role) {
+    const context = await browser.newContext();
+    contexts.push(context);
+    // Only render the real local frontend. Every API request uses the isolated
+    // integration server and test database, including mutations from the UI.
+    await context.route(baseURL + '/api/**', async route => {
+      const response = await route.fetch({ url: apiURL + new URL(route.request().url()).pathname.slice(4) + new URL(route.request().url()).search });
+      await route.fulfill({ response });
+    });
+    const page = await context.newPage();
+    page.on('pageerror', error => failures.push(error.message));
+    await page.goto(baseURL + '/login');
+    await page.locator('input[type=email]').fill(email(role));
+    await page.locator('input[type=password]').fill(password);
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+    await page.getByLabel('Mã xác thực từ email').waitFor();
+    const otp = await tokenFor(email(role), 'LOGIN');
+    await page.getByLabel('Mã xác thực từ email').fill(otp.value);
+    await page.getByRole('button', { name: 'Xác thực', exact: true }).click();
+    await page.waitForURL(`**/${role}`);
+    return page;
+  }
+  try {
+    const manager = await signIn('manager');
+    let name = 'Browser Course ' + run;
+    const code = 'BROWSER-' + run;
+    await manager.goto(baseURL + '/manager/courses');
+    await manager.getByRole('button', { name: 'Tạo khóa học', exact: true }).click();
+    await manager.getByLabel('Tên khóa học').fill(name);
+    await manager.getByLabel('Chương trình').selectOption('IELTS');
+    await manager.getByLabel('Trình độ').fill('Foundation');
+    await manager.getByRole('button', { name: 'Lưu', exact: true }).click();
+    let row = manager.getByRole('row').filter({ hasText: name });
+    await row.getByRole('button', { name: 'Sửa khóa học', exact: true }).click();
+    name = 'Edited ' + name;
+    await manager.getByLabel('Tên khóa học').fill(name);
+    await manager.getByRole('button', { name: 'Lưu', exact: true }).click();
+    row = manager.getByRole('row').filter({ hasText: name });
+    await row.getByRole('button', { name: 'Mở lớp mới', exact: true }).click();
+    await manager.getByLabel('Mã lớp').fill(code);
+    await manager.getByLabel('Hình thức').selectOption('GROUP');
+    await manager.getByLabel('Học phí VND').fill('1500000');
+    await manager.getByLabel('Bắt đầu').fill(new Date(Date.now() + 86400000).toISOString().slice(0, 16));
+    await manager.getByLabel('Kết thúc').fill(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+    await manager.getByLabel('Giáo viên phụ trách').selectOption(String(teacherId));
+    await manager.getByRole('button', { name: 'Lưu', exact: true }).click();
+    await manager.getByRole('row').filter({ hasText: code }).waitFor();
+    const [group] = await query('SELECT class_id FROM class_group WHERE code=@code', { code });
+    assert.ok(group);
+
+    const student = await signIn('student');
+    await student.goto(baseURL + '/courses');
+    await student.getByLabel('Tìm khóa học').fill(name);
+    const card = student.locator('.card').filter({ has: student.getByRole('heading', { name, exact: true }) });
+    await card.getByRole('button', { name: 'Đăng ký lớp', exact: true }).click();
+    await student.waitForURL('**/student/enrollments/*');
+    await student.getByRole('button', { name: 'Hiện QR thanh toán', exact: true }).click();
+    await student.getByRole('img', { name: 'QR tài khoản công ty' }).waitFor();
+    assert.match(await student.locator('strong').filter({ hasText: /^PAY/ }).textContent(), /^PAY[A-F0-9]{12}$/);
+    await student.screenshot({ path: fileURLToPath(new URL('student-qr.png', output)), fullPage: true });
+
+    await manager.goto(baseURL + '/manager/enrollments');
+    let enrollment = manager.getByRole('row').filter({ hasText: code });
+    await enrollment.getByRole('button', { name: 'Xác nhận đã nhận tiền', exact: true }).click();
+    await manager.getByLabel('Nội dung xác nhận').fill('Browser test only; no bank transaction');
+    await manager.getByRole('button', { name: 'Xác nhận đã thực nhận', exact: true }).click();
+    enrollment = manager.getByRole('row').filter({ hasText: code });
+    await enrollment.getByRole('button', { name: 'Duyệt vào lớp', exact: true }).waitFor();
+    await student.reload();
+    await student.getByText('Đã nhận thanh toán. Đang chờ Manager duyệt vào lớp.', { exact: true }).waitFor();
+    assert.equal(await student.getByRole('link', { name: 'Vào lớp →' }).count(), 0);
+    await enrollment.getByRole('button', { name: 'Duyệt vào lớp', exact: true }).click();
+    await enrollment.getByText('SUCCESS', { exact: true }).waitFor();
+    await student.reload();
+    await student.getByRole('link', { name: 'Vào lớp →' }).click();
+    await student.waitForURL('**/student/classes/' + group.class_id);
+
+    const teacher = await signIn('teacher');
+    await teacher.goto(baseURL + '/teacher/classes/' + group.class_id);
+    await teacher.getByLabel('Tên tài liệu').fill('Browser material ' + run);
+    await teacher.getByLabel('Nội dung / mô tả').fill('Material created through the real browser form');
+    await teacher.getByRole('button', { name: 'Lưu', exact: true }).click();
+    await teacher.getByRole('cell', { name: 'Browser material ' + run, exact: true }).waitFor();
+    await student.reload();
+    await student.getByRole('cell', { name: 'Browser material ' + run, exact: true }).waitFor();
+    await teacher.getByRole('button', {name:'Bài tập',exact:true}).click();
+    const assignmentTitle='Browser Assignment '+run;
+    await teacher.getByLabel('Tên bài tập').fill(assignmentTitle);
+    await teacher.getByLabel('Yêu cầu & tài liệu liên quan').fill('Submit a text essay based on the material.');
+    await teacher.getByLabel('Định dạng nộp bài').selectOption('TEXT');
+    const [material]=await query('SELECT material_id FROM course_material WHERE class_id=@class AND title=@title',{class:group.class_id,title:'Browser material '+run});
+    await teacher.getByLabel('Tài liệu kèm bài tập').selectOption([String(material.material_id)]);
+    await teacher.getByLabel('Hạn nộp').fill(new Date(Date.now()+86400000).toISOString().slice(0,16));
+    await teacher.getByRole('button',{name:'Lưu',exact:true}).click();
+    await teacher.getByRole('cell',{name:assignmentTitle,exact:true}).waitFor();
+    const [assignment]=await query('SELECT assignment_id FROM assignment WHERE class_id=@class AND title=@title',{class:group.class_id,title:assignmentTitle});
+    await student.goto(baseURL+'/student/assignments/'+assignment.assignment_id);
+    await student.getByText('Định dạng nộp: TEXT',{exact:true}).waitFor();
+    assert.equal(await student.locator('input[type=file]').count(),0);
+    await student.getByText('Browser material '+run,{exact:true}).waitFor();
+    await student.getByLabel('Nội dung bài làm').fill('Browser submitted essay using the attached resource.');
+    const submitted=student.waitForResponse(r=>r.url().endsWith(`/assignments/${assignment.assignment_id}/submission`)&&r.request().method()==='POST');
+    await student.getByRole('button',{name:'Xác nhận nộp bài',exact:true}).click();
+    assert.equal((await submitted).status(),200);
+    await teacher.goto(baseURL+'/teacher/assignments/'+assignment.assignment_id+'/submissions');
+    await teacher.getByRole('link',{name:'Chấm & phản hồi',exact:true}).click();
+    await teacher.getByLabel('Điểm',{exact:false}).fill('7');
+    await teacher.getByLabel('Phản hồi của giáo viên').fill('Feedback via browser');
+    const graded=teacher.waitForResponse(r=>r.url().endsWith('/grade')&&r.request().method()==='PUT');
+    await teacher.getByRole('button',{name:'Lưu điểm & phản hồi',exact:true}).click();
+    assert.equal((await graded).status(),200);
+    await student.goto(baseURL+'/student/progress');
+    await student.getByLabel('Chỉ số',{exact:false}).selectOption('IELTS_WRITING');
+    await student.getByRole('row').filter({hasText:assignmentTitle}).getByRole('button',{name:'Xem điểm & phản hồi',exact:true}).click();
+    await student.getByText('Phản hồi: Feedback via browser',{exact:true}).waitFor();
+    await student.getByLabel('Từ ngày').fill('2030-01-01');
+    await student.getByText('Chưa có kết quả cho chỉ số này.',{exact:true}).waitFor();
+    await student.getByRole('button',{name:'Xóa bộ lọc',exact:true}).click();
+    await student.getByRole('cell',{name:assignmentTitle,exact:true}).waitFor();
+    await student.goto(baseURL+'/profile');
+    await student.getByLabel('Số điện thoại').fill('0912345678');
+    await student.getByLabel('Ngày sinh').fill('2005-04-12');
+    const profileSaved=student.waitForResponse(r=>r.url().endsWith('/auth/profile')&&r.request().method()==='PATCH');
+    await student.getByRole('button',{name:'Lưu',exact:true}).click();
+    assert.equal((await profileSaved).status(),200);
+    await student.reload();
+    assert.equal(await student.getByLabel('Số điện thoại').inputValue(),'0912345678');
+    assert.equal(await student.getByLabel('Ngày sinh').inputValue(),'2005-04-12');
+    await teacher.goto(baseURL+'/teacher');
+    await teacher.locator('.stat').filter({hasText:'Giờ dạy đã ghi nhận trong tháng'}).waitFor();
+    await teacher.locator('.stat').filter({hasText:'Thu nhập ước tính'}).waitFor();
+    assert.deepEqual(failures, []);
+    console.log('Browser flow passed: MFA, course/class, payment approval, materials, formatted assignment, grading, filtered progress/details, profile and dashboard');
+  } finally {
+    await Promise.all(contexts.map(context => context.close()));
+    await browser.close();
+  }
+}
