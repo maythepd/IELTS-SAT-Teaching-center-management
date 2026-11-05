@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.next-check/
+.env
+.env.local
+backend/data/
+backend/logs/
+*.log
