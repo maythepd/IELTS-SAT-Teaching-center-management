@@ -26,7 +26,7 @@ async function checkStudentExpiry(id) {
   }
 }
 function validPassword(value) {
-  if (typeof value !== 'string' || value.length < 10 || value.length > 128) invalid('WEAK_PASSWORD', 'Mật khẩu cần từ 10 đến 128 ký tự.');
+  if (typeof value !== 'string' || value.length < 6 || value.length > 128) invalid('WEAK_PASSWORD', 'Mật khẩu cần từ 6 đến 128 ký tự.');
 }
 export async function issueToken(accountId, purpose, payload = null, minutes = 60, tx = null) {
   const raw = token();
@@ -196,12 +196,25 @@ export async function profile(user, body = null) {
   if (body) {
     const name = text(body.full_name, 120);
     if (!name) invalid('NAME_REQUIRED', 'Vui lòng nhập tên.');
+    let newEmail = null;
+    if (body.email) {
+      newEmail = email(body.email);
+      const [existing] = await query('SELECT account_id FROM account WHERE email=@e AND account_id!=@id', {
+        e: newEmail,
+        id: user.account_id
+      });
+      if (existing) invalid('EMAIL_EXISTS', 'Email này đã được sử dụng bởi tài khoản khác.');
+    }
     const phone = text(body.phone, 30);
     if (body.phone && (!/^[+\d() .-]{7,30}$/.test(body.phone) || !/\d/.test(body.phone))) invalid('PHONE_INVALID', 'Số điện thoại không hợp lệ.');
     const birth = body.date_of_birth || null;
     if (birth && (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !Number.isFinite(Date.parse(birth)) || new Date(birth).toISOString().slice(0, 10) !== birth || new Date(birth) > new Date())) invalid('BIRTH_DATE_INVALID', 'Ngày sinh không hợp lệ hoặc ở tương lai.');
     await transaction(async tx => {
-      await query('UPDATE account SET full_name=@name WHERE account_id=@id', { name, id: user.account_id }, tx);
+      await query('UPDATE account SET full_name=@name, email=COALESCE(@email, email) WHERE account_id=@id', {
+        name,
+        email: newEmail,
+        id: user.account_id
+      }, tx);
       if (user.student_id) await query('UPDATE student SET phone=CASE WHEN @setPhone=1 THEN @phone ELSE phone END,date_of_birth=CASE WHEN @setBirth=1 THEN @birth ELSE date_of_birth END WHERE student_id=@id', {
         id: user.student_id, phone, birth, setPhone: Object.hasOwn(body, 'phone'), setBirth: Object.hasOwn(body, 'date_of_birth')
       }, tx);

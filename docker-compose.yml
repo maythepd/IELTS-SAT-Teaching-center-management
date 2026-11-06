@@ -43,7 +43,7 @@ services:
       - DB_ENCRYPT=true
       - DB_TRUST_SERVER_CERTIFICATE=true
       - MFA_REQUIRED=false
-      - DEMO_PASSWORD=DemoPassword@123
+      - DEMO_PASSWORD=abc@123
       - AUTO_MIGRATE=true
       - AUTO_SEED=true
     ports:

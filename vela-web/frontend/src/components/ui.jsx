@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { api, notice } from '../lib/api';
+import { t } from '../lib/i18n';
 export function useData(url) {
   const [data, setData] = useState(null),
     [error, setError] = useState(''),
@@ -30,26 +31,27 @@ export function Loading({
   error,
   reload
 }) {
-  return <div className="card muted">{error ? <><p className="error">{error}</p><button onClick={reload}>Thử lại</button></> : <p>Đang tải dữ liệu…</p>}</div>;
+  return <div className="card muted">{error ? <><p className="error">{error}</p><button onClick={reload}>{t('Thử lại')}</button></> : <p>{t('Đang tải dữ liệu…')}</p>}</div>;
 }
 export function Table({
   rows,
   columns,
   empty = 'Chưa có dữ liệu.'
 }) {
-  return <div className="table-scroll"><table><thead><tr>{columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead><tbody>{rows?.map((r, i) => <tr key={r.account_id || r.event_id || r.payment_id || r.submission_id || i}>{columns.map(c => <td key={c.key}>{c.render ? c.render(r) : r[c.key] ?? '—'}</td>)}</tr>)}</tbody></table>{!rows?.length && <p className="empty">{empty}</p>}</div>;
+  return <div className="table-scroll"><table><thead><tr>{columns.map(c => <th key={c.key}>{t(c.label)}</th>)}</tr></thead><tbody>{rows?.map((r, i) => <tr key={r.account_id || r.event_id || r.payment_id || r.submission_id || i}>{columns.map(c => <td key={c.key}>{c.render ? c.render(r) : r[c.key] ?? '—'}</td>)}</tr>)}</tbody></table>{!rows?.length && <p className="empty">{t(empty)}</p>}</div>;
 }
 export function Badge({
   value
 }) {
-  return <span className={'badge ' + (['SUCCESS', 'PAID', 'APPROVED', 'GRADED', 'ACTIVE', 'SENT'].includes(value) ? 'green' : ['FAILED', 'REJECTED', 'LOCKED'].includes(value) ? 'red' : '')}>{value || 'Chưa ghi nhận'}</span>;
+  return <span className={'badge ' + (['SUCCESS', 'PAID', 'APPROVED', 'GRADED', 'ACTIVE', 'SENT'].includes(value) ? 'green' : ['FAILED', 'REJECTED', 'LOCKED'].includes(value) ? 'red' : '')}>{t(value) || t('Chưa ghi nhận')}</span>;
 }
 export function PageTitle({
   title,
   subtitle,
   children
 }) {
-  return <div className="page-heading"><div><p className="eyebrow">TRUNG TÂM HỌC TẬP</p><h1>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div><div>{children}</div></div>;
+  if (!children) return null;
+  return <div className="page-heading" style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}><div>{children}</div></div>;
 }
 export function Action({
   children,
@@ -72,7 +74,7 @@ export function Action({
       } finally {
         setBusy(false);
       }
-    }}>{busy ? 'Đang xử lý…' : children}</button>{error && <small className="error">{error}</small>}</span>;
+    }}>{busy ? t('Đang xử lý…') : children}</button>{error && <small className="error">{error}</small>}</span>;
 }
 export function Form({
   fields,
@@ -81,7 +83,9 @@ export function Form({
   label = 'Lưu',
   onDone,
   children,
-  onValuesChange
+  onValuesChange,
+  cancelHref,
+  cancelLabel = 'Quay lại'
 }) {
   const [values, setValues] = useState(initial),
     [error, setError] = useState(''),
@@ -103,19 +107,19 @@ export function Form({
     } finally {
       setBusy(false);
     }
-  }}>{fields.map(f => <label key={f.name} className={f.wide ? 'wide' : ''}><span>{f.label}{f.required ? ' *' : ''}</span>{f.type === 'textarea' ? <textarea rows={f.rows || 4} value={values[f.name] ?? ''} required={f.required} onChange={e => setValues(v => ({
+  }}>{fields.map(f => <label key={f.name} className={f.wide ? 'wide' : ''}><span>{t(f.label)}{f.required ? ' *' : ''}</span>{f.type === 'textarea' ? <textarea rows={f.rows || 4} value={values[f.name] ?? ''} required={f.required} onChange={e => setValues(v => ({
         ...v,
         [f.name]: e.target.value
       }))} /> : f.options ? <select multiple={!!f.multiple} value={values[f.name] ?? (f.multiple ? [] : '')} required={f.required} onChange={e => setValues(v => ({
         ...v,
         [f.name]: f.multiple ? Array.from(e.target.selectedOptions, x => x.value) : e.target.value
-      }))}>{!f.multiple && <option value="">Chọn…</option>}{f.options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}</select> : f.type === 'file' ? <Upload onUpload={id => setValues(v => ({
+      }))}>{!f.multiple && <option value="">{t('Chọn…')}</option>}{f.options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{t(o.label ?? o)}</option>)}</select> : f.type === 'file' ? <Upload onUpload={id => setValues(v => ({
         ...v,
         [f.name]: id
-      }))} /> : <input type={f.type || 'text'} value={values[f.name] ?? ''} required={f.required} min={f.min} max={f.max} step={f.step || 'any'} onChange={e => setValues(v => ({
+      }))} /> : <input type={f.type || 'text'} value={values[f.name] ?? ''} required={f.required} minLength={f.minLength} maxLength={f.maxLength} min={f.min} max={f.max} step={f.step || 'any'} onChange={e => setValues(v => ({
         ...v,
         [f.name]: e.target.value
-      }))} />} {f.help && <small className="muted">{f.help}</small>}</label>)}{children}{error && <p className="error wide" role="alert">{error}</p>}<div className="wide"><button className="primary" disabled={busy}>{busy ? 'Đang lưu…' : label}</button></div></form>;
+      }))} />} {f.help && <small className="muted">{t(f.help)}</small>}</label>)}{children}{error && <p className="error wide" role="alert">{error}</p>}<div className="wide" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}><button className="primary" disabled={busy}>{busy ? t('Đang lưu…') : t(label)}</button>{cancelHref && <Link href={cancelHref} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px 14px', border: '1px solid #ccd7e9', borderRadius: 7, background: '#fff', color: 'var(--ink)', textDecoration: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{t(cancelLabel)}</Link>}</div></form>;
 }
 export function Upload({
   onUpload

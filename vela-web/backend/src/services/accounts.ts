@@ -31,7 +31,7 @@ export async function saveAccount(user, body, id = null) {
         id
       }, tx);
     } else {
-      if (typeof body.password !== 'string' || body.password.length < 10) invalid('PASSWORD_REQUIRED', 'Mật khẩu khởi tạo cần ít nhất 10 ký tự.');
+      if (typeof body.password !== 'string' || body.password.length < 6) invalid('PASSWORD_REQUIRED', 'Mật khẩu khởi tạo cần ít nhất 6 ký tự.');
       const [a] = await query('INSERT account(email,full_name,password_hash,role,status) OUTPUT INSERTED.account_id VALUES(@e,@name,@p,@role,@status)', {
         e,
         name,

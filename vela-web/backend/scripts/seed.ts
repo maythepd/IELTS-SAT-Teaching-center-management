@@ -2,7 +2,7 @@ import { query, transaction, close } from '../src/database/db_connection.ts';
 import { passwordHash } from '../src/utils/security.ts';
 try {
   const password = process.env.DEMO_PASSWORD;
-  if (!password || password.length < 10) throw new Error('Đặt DEMO_PASSWORD >=10 ký tự trong .env.');
+  if (!password || password.length < 6) throw new Error('Đặt DEMO_PASSWORD >=6 ký tự trong .env.');
   if (process.env.NODE_ENV === 'production') throw new Error('Không seed demo trong production.');
   const existingDemo = process.argv.includes('--if-empty') && (await query("SELECT account_id FROM account WHERE email='manager@example.test'")).length > 0;
   if (existingDemo) {
@@ -11,7 +11,7 @@ try {
   await transaction(async tx => {
     if ((await query("SELECT account_id FROM account WHERE email='manager@example.test'", {}, tx)).length) throw new Error('Demo đã tồn tại; seed không ghi đè dữ liệu.');
     const people: Record<string, number> = {};
-    for (const [name, role, e] of [['Quản lý Demo', 'MANAGER', 'manager@example.test'], ['Giáo viên Demo', 'TEACHER', 'teacher@example.test'], ['Học viên Demo', 'STUDENT', 'student@example.test']]) {
+    for (const [name, role, e] of [['Quản lý', 'MANAGER', 'manager@example.test'], ['Giáo viên', 'TEACHER', 'teacher@example.test'], ['Học viên', 'STUDENT', 'student@example.test']]) {
       const [a] = await query("INSERT account(email,full_name,password_hash,role,status) OUTPUT INSERTED.account_id VALUES(@e,@name,@p,@role,'ACTIVE')", {
         e,
         name,

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useData, Loading, PageTitle, Table, Badge, Action } from './ui';
 import { api, money } from '../lib/api';
+import { t } from '../lib/i18n';
 export function Enrollments() {
   const state = useData('/student/enrollments');
   return <><PageTitle title="Đăng ký & học phí" />{state.data ? <section className="card"><Table rows={state.data} columns={[{
@@ -27,7 +28,7 @@ export function Enrollments() {
       }, {
         key: 'action',
         label: 'Chi tiết',
-        render: r => <Link href={'/student/enrollments/' + r.enrollment_id}>Xem / thanh toán</Link>
+        render: r => <Link href={'/student/enrollments/' + r.enrollment_id}>{t('Xem / thanh toán')}</Link>
       }]} /></section> : <Loading {...state} />}</>;
 }
 export function Payment({
@@ -37,9 +38,9 @@ export function Payment({
     [payment, setPayment] = useState(null);
   if (!state.data) return <Loading {...state} />;
   const e = state.data;
-  return <><PageTitle title={e.name + ' · ' + e.code} subtitle="Sau thanh toán, quản lý sẽ duyệt quyền vào lớp."><button onClick={state.reload}>Kiểm tra trạng thái</button></PageTitle><section className="card"><div className="inline"><Badge value={e.status} /><Badge value={e.payment_status} /></div><p className="course-price">{money(e.fee_snapshot)}</p>{e.status === 'SUCCESS' ? <Link href={'/student/classes/' + e.class_id}>Vào lớp →</Link> : e.payment_status === 'PAID' ? <p className="notice">Đã nhận thanh toán. Đang chờ Manager duyệt vào lớp.</p> : new Date(e.starts_at) <= new Date() ? <p className="notice">Your enrollment is recorded and a salesperson will contact you shortly for payment.</p> : <Action className="primary" work={() => api('/student/enrollments/' + id + '/payment', {
+  return <><PageTitle title={e.name + ' · ' + e.code} subtitle="Sau thanh toán, quản lý sẽ duyệt quyền vào lớp."><button onClick={state.reload}>{t('Kiểm tra trạng thái')}</button></PageTitle><section className="card"><div className="inline"><Badge value={e.status} /><Badge value={e.payment_status} /></div><p className="course-price">{money(e.fee_snapshot)}</p>{e.status === 'SUCCESS' ? <Link href={'/student/classes/' + e.class_id}>{t('Vào lớp →')}</Link> : e.payment_status === 'PAID' ? <p className="notice">{t('Đã nhận thanh toán. Đang chờ Manager duyệt vào lớp.')}</p> : new Date(e.starts_at) <= new Date() ? <p className="notice">Your enrollment is recorded and a salesperson will contact you shortly for payment.</p> : <Action className="primary" work={() => api('/student/enrollments/' + id + '/payment', {
         method: 'POST'
-      })} onDone={setPayment}>Hiện QR thanh toán</Action>}{payment?.qr_url && <div style={{
+      })} onDone={setPayment}>{t('Hiện QR thanh toán')}</Action>}{payment?.qr_url && <div style={{
         marginTop: 20
       }}><img src={payment.qr_url} alt="QR tài khoản công ty" width="320" height="400" style={{
           objectFit: 'contain'

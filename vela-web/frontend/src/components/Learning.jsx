@@ -22,14 +22,19 @@ export function Catalog({
 export function Profile() {
   const state = useData('/auth/profile');
   if (!state.data) return <Loading {...state} />;
-  return <><PageTitle title="Hồ sơ cá nhân" /><section className="card"><Form key={state.data.full_name + '-' + state.data.phone + '-' + state.data.date_of_birth} initial={{...state.data, date_of_birth: state.data.date_of_birth ? new Date(state.data.date_of_birth).toISOString().slice(0, 10) : ''}} fields={[{
+  return <><PageTitle title="Hồ sơ cá nhân" subtitle="Quản lý thông tin tài khoản, họ tên, email và số điện thoại." /><section className="card"><Form key={state.data.full_name + '-' + state.data.email + '-' + state.data.phone + '-' + state.data.date_of_birth} initial={{...state.data, date_of_birth: state.data.date_of_birth ? new Date(state.data.date_of_birth).toISOString().slice(0, 10) : ''}} fields={[{
         name: 'full_name',
         label: 'Họ tên',
+        required: true
+      }, {
+        name: 'email',
+        label: 'Email',
+        type: 'email',
         required: true
       }, ...(state.data.role !== 'MANAGER' ? [{name: 'phone', label: 'Số điện thoại', type: 'tel'}] : []), ...(state.data.role === 'STUDENT' ? [{name: 'date_of_birth', label: 'Ngày sinh', type: 'date'}] : [])]} submit={body => api('/auth/profile', {
         method: 'PATCH',
         body
-      })} onDone={state.reload} /><p className="muted">{state.data.email} · {state.data.role}</p></section>{state.data.role === 'STUDENT' && <><section className="card"><h2>Liên hệ phụ huynh</h2><p className="muted">Phụ huynh xác nhận đồng ý qua liên kết gửi đến chính email của họ.</p><Form fields={[{
+      })} onDone={state.reload} /></section>{state.data.role === 'STUDENT' && <><section className="card"><h2>Liên hệ phụ huynh</h2><p className="muted">Phụ huynh xác nhận đồng ý qua liên kết gửi đến chính email của họ.</p><Form fields={[{
           name: 'name',
           label: 'Họ tên phụ huynh',
           required: true
@@ -83,82 +88,191 @@ export function ClassDetail({
     state = useData(prefix + '/classes/' + id),
     materials = useData(prefix + '/classes/' + id + '/materials'),
     assignments = useData(prefix + '/classes/' + id + '/assignments'),
-    [tab, setTab] = useState('materials'),
-    [edit, setEdit] = useState(null);
+    [editMaterial, setEditMaterial] = useState(null),
+    [showAddMaterial, setShowAddMaterial] = useState(false),
+    [editAssignment, setEditAssignment] = useState(null),
+    [showAddAssignment, setShowAddAssignment] = useState(false);
+
   if (!state.data) return <Loading {...state} />;
   const c = state.data;
-  return <><PageTitle title={c.course_name + ' · ' + c.code} subtitle={c.format + ' · ' + when(c.starts_at)} /><nav className="tabs">{[['materials', 'Tài liệu'], ['assignments', 'Bài tập'], ...(staff ? [['students', 'Học sinh']] : [])].map(([key, label]) => <button key={key} onClick={() => {
-        setTab(key);
-        setEdit(null);
-      }}>{label}</button>)}<Link href={base + '/tests'}>Luyện thi</Link></nav>{tab === 'materials' ? <><section className="card">{materials.data ? <Table rows={materials.data} columns={[{
-          key: 'title',
-          label: 'Tài liệu'
-        }, {
-          key: 'description',
-          label: 'Mô tả'
-        }, {
-          key: 'resource',
-          label: 'Truy cập',
-          render: r => <div><FileLink id={r.file_id} />{r.external_url && <a href={r.external_url} target="_blank" rel="noreferrer">Liên kết ngoài</a>}</div>
-        }, ...(staff ? [{
-          key: 'edit',
-          label: 'Sửa',
-          render: r => <button onClick={() => setEdit(r)}>Chỉnh sửa</button>
-        }] : [])]} /> : <Loading {...materials} />}</section>{staff && <section className="card"><h2>{edit ? 'Sửa tài liệu' : 'Thêm tài liệu'}</h2><Form key={edit?.material_id || 'new-material'} initial={edit || {}} fields={[{
-          name: 'title',
-          label: 'Tên tài liệu',
-          required: true
-        }, {
-          name: 'external_url',
-          label: 'Link tài liệu',
-          type: 'url'
-        }, {
-          name: 'description',
-          label: 'Nội dung / mô tả',
-          type: 'textarea',
-          wide: true
-        }, {
-          name: 'file_id',
-          label: 'File tài liệu',
-          type: 'file'
-        }]} submit={body => api('/teacher/classes/' + id + '/materials' + (edit ? '/' + edit.material_id : ''), {
-          method: edit ? 'PATCH' : 'POST',
-          body
-        })} onDone={() => {
-          materials.reload();
-          setEdit(null);
-        }} />{edit && <button onClick={() => setEdit(null)}>Hủy sửa</button>}</section>}</> : tab === 'assignments' ? <><section className="card">{assignments.data ? <Table rows={assignments.data} columns={[{
-          key: 'title',
-          label: 'Bài tập'
-        }, {
-          key: 'task_type',
-          label: 'Loại'
-        }, {
-          key: 'due_at',
-          label: 'Hạn nộp',
-          render: r => when(r.due_at)
-        }, {
-          key: 'status',
-          label: 'Trạng thái',
-          render: r => <Badge value={staff ? r.status : r.submission_status} />
-        }, {
-          key: 'actions',
-          label: 'Thao tác',
-          render: r => staff ? <div className="inline"><Link href={base + '/assignments/' + r.assignment_id + '/submissions'}>Bài nộp</Link><button onClick={() => setEdit(r)}>Sửa</button></div> : <Link href={'/student/assignments/' + r.assignment_id}>Mở bài tập</Link>
-        }]} /> : <Loading {...assignments} />}</section>{staff && <AssignmentEditor key={edit?.assignment_id || 'new'} classId={id} initial={edit} onDone={() => {
-        assignments.reload();
-        setEdit(null);
-      }} />}</> : <section className="card"><Table rows={c.students} columns={[{
-        key: 'full_name',
-        label: 'Học sinh'
-      }, {
-        key: 'email',
-        label: 'Email'
-      }, {
-        key: 'progress',
-        label: 'Học tập',
-        render: r => <Link href={base + '/students/' + r.student_id + '/progress'}>Xem tiến độ →</Link>
-      }]} /></section>}</>;
+
+  return <>
+    <PageTitle
+      title={c.course_name + ' · ' + c.code}
+      subtitle={c.format + ' · ' + when(c.starts_at) + ' – ' + when(c.ends_at)}
+    />
+
+    {/* Section 1: Tổng quan thông tin lớp học */}
+    <section className="card">
+      <h2>Thông tin lớp học</h2>
+      <div className="stats" style={{ marginBottom: 0 }}>
+        <div className="stat">
+          Khóa học
+          <strong style={{ fontSize: 18, marginTop: 4 }}>{c.course_name}</strong>
+          <small>{c.program} · {c.level || 'Chuẩn'}</small>
+        </div>
+        <div className="stat">
+          Mã lớp
+          <strong style={{ fontSize: 18, marginTop: 4 }}>{c.code}</strong>
+          <small>Hình thức: {c.format}</small>
+        </div>
+        <div className="stat">
+          Học phí
+          <strong style={{ fontSize: 18, marginTop: 4, color: 'var(--blue)' }}>{money(c.tuition_amount)}</strong>
+          <small>Trạng thái: <Badge value={c.status} /></small>
+        </div>
+        <div className="stat">
+          Thời gian học
+          <strong style={{ fontSize: 14, marginTop: 4 }}>{when(c.starts_at)}</strong>
+          <small>Đến: {when(c.ends_at)}</small>
+        </div>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <Link className="primary" style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 6 }} href={base + '/tests'}>
+          Đề luyện thi & Mock Tests của lớp →
+        </Link>
+      </div>
+    </section>
+
+    {/* Section 2: Tài liệu học tập */}
+    <section className="card">
+      <div className="page-heading" style={{ marginBottom: 12 }}>
+        <h2>Tài liệu học tập ({materials.data?.length || 0})</h2>
+        {staff && (
+          <button onClick={() => { setEditMaterial(null); setShowAddMaterial(v => !v); }}>
+            {showAddMaterial ? 'Đóng' : '+ Thêm tài liệu'}
+          </button>
+        )}
+      </div>
+
+      {showAddMaterial && staff && (
+        <div style={{ marginBottom: 20, padding: 16, background: '#f8faff', borderRadius: 8, border: '1px solid var(--line)' }}>
+          <h3>{editMaterial ? 'Sửa tài liệu' : 'Thêm tài liệu mới'}</h3>
+          <Form
+            key={editMaterial?.material_id || 'new-material'}
+            initial={editMaterial || {}}
+            fields={[
+              { name: 'title', label: 'Tên tài liệu', required: true },
+              { name: 'external_url', label: 'Link tài liệu ngoài (nếu có)', type: 'url' },
+              { name: 'description', label: 'Nội dung / mô tả', type: 'textarea', wide: true },
+              { name: 'file_id', label: 'Tải file tài liệu (PDF, Word, MP3...)', type: 'file' }
+            ]}
+            submit={body =>
+              api('/teacher/classes/' + id + '/materials' + (editMaterial ? '/' + editMaterial.material_id : ''), {
+                method: editMaterial ? 'PATCH' : 'POST',
+                body
+              })
+            }
+            onDone={() => {
+              materials.reload();
+              setEditMaterial(null);
+              setShowAddMaterial(false);
+            }}
+          />
+        </div>
+      )}
+
+      {!materials.data ? (
+        <Loading {...materials} />
+      ) : materials.data.length === 0 ? (
+        <p className="empty">Chưa có tài liệu học tập nào trong lớp này.</p>
+      ) : (
+        <Table
+          rows={materials.data}
+          columns={[
+            { key: 'title', label: 'Tài liệu' },
+            { key: 'description', label: 'Mô tả' },
+            {
+              key: 'resource',
+              label: 'Truy cập',
+              render: r => <div><FileLink id={r.file_id} />{r.external_url && <a href={r.external_url} target="_blank" rel="noreferrer">Liên kết ngoài</a>}</div>
+            },
+            ...(staff ? [{
+              key: 'edit',
+              label: 'Sửa',
+              render: r => (
+                <button onClick={() => { setEditMaterial(r); setShowAddMaterial(true); }}>Chỉnh sửa</button>
+              )
+            }] : [])
+          ]}
+        />
+      )}
+    </section>
+
+    {/* Section 3: Bài tập & Nhiệm vụ */}
+    <section className="card">
+      <div className="page-heading" style={{ marginBottom: 12 }}>
+        <h2>Bài tập & Nhiệm vụ ({assignments.data?.length || 0})</h2>
+        {staff && (
+          <button onClick={() => { setEditAssignment(null); setShowAddAssignment(v => !v); }}>
+            {showAddAssignment ? 'Đóng' : '+ Giao bài tập mới'}
+          </button>
+        )}
+      </div>
+
+      {showAddAssignment && staff && (
+        <div style={{ marginBottom: 20, padding: 16, background: '#f8faff', borderRadius: 8, border: '1px solid var(--line)' }}>
+          <AssignmentEditor
+            key={editAssignment?.assignment_id || 'new'}
+            classId={id}
+            initial={editAssignment}
+            onDone={() => {
+              assignments.reload();
+              setEditAssignment(null);
+              setShowAddAssignment(false);
+            }}
+          />
+        </div>
+      )}
+
+      {!assignments.data ? (
+        <Loading {...assignments} />
+      ) : assignments.data.length === 0 ? (
+        <p className="empty">Chưa có bài tập nào được giao cho lớp này.</p>
+      ) : (
+        <Table
+          rows={assignments.data}
+          columns={[
+            { key: 'title', label: 'Bài tập' },
+            { key: 'task_type', label: 'Loại bài' },
+            { key: 'due_at', label: 'Hạn nộp', render: r => when(r.due_at) },
+            { key: 'status', label: 'Trạng thái', render: r => <Badge value={staff ? r.status : r.submission_status} /> },
+            {
+              key: 'actions',
+              label: 'Thao tác',
+              render: r => staff ? (
+                <div className="inline">
+                  <Link href={base + '/assignments/' + r.assignment_id + '/submissions'}>Xem bài nộp</Link>
+                  <button onClick={() => { setEditAssignment(r); setShowAddAssignment(true); }}>Sửa</button>
+                </div>
+              ) : (
+                <Link href={'/student/assignments/' + r.assignment_id}>Làm bài tập →</Link>
+              )
+            }
+          ]}
+        />
+      )}
+    </section>
+
+    {/* Section 4: Danh sách học sinh trong lớp (cho staff hoặc khi có dữ liệu) */}
+    {c.students && c.students.length > 0 && (
+      <section className="card">
+        <h2>Danh sách học viên ({c.students.length})</h2>
+        <Table
+          rows={c.students}
+          columns={[
+            { key: 'full_name', label: 'Học sinh' },
+            { key: 'email', label: 'Email' },
+            {
+              key: 'progress',
+              label: 'Tiến độ',
+              render: r => staff ? <Link href={base + '/students/' + r.student_id + '/progress'}>Xem tiến độ →</Link> : null
+            }
+          ]}
+        />
+      </section>
+    )}
+  </>;
 }
 function AssignmentEditor({
   classId,

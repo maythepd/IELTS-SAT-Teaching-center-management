@@ -7,16 +7,18 @@ import { ClassList, ClassDetail, SubmissionPage, GradingList, GradingPage, Resul
 import Progress from './Progress';
 import Calendar from './Calendar';
 import { Dashboard, Session, Report, Income } from './Teaching';
-import { AccountManagement, EnrollmentManagement, Payments, Rates, SystemTable } from './Management';
+import { ManagerDashboard, AccountManagement, EnrollmentManagement, Payments, Rates, SystemTable } from './Management';
 import CourseManagement from './CourseManagement';
 import { Enrollments, Payment } from './StudentPayments';
 import { Tests, TestEditor, AttemptList, Attempt } from './Tests';
 import { useData, Loading, PageTitle } from './ui';
+import { t } from '../lib/i18n';
 function StudentHome({
   user
 }) {
   const state = useData('/student/classes');
-  return <><div className="welcome"><p className="eyebrow">YOUR LEARNING JOURNEY</p><h1>Hôm nay bạn muốn học gì, {user.full_name}?</h1><p>Theo dõi lớp học, hoàn thành bài tập và luyện IELTS / SAT theo mục tiêu của bạn.</p></div>{state.data ? <div className="stats"><div className="stat">Lớp đang truy cập<strong>{state.data.length}</strong></div><div className="stat"><Link href="/student/tests">Luyện thi trực tuyến →</Link><p className="muted">Làm bài và xem phản hồi.</p></div><div className="stat"><Link href="/student/progress">Tiến độ theo kỹ năng →</Link><p className="muted">Kết quả và mục tiêu của bạn.</p></div></div> : <Loading {...state} />}<ClassList /></>;
+  return <>
+    {state.data ? <div className="stats"><div className="stat">{t('Lớp đang truy cập')}<strong>{state.data.length}</strong></div><div className="stat"><Link href="/student/tests">{t('Luyện thi trực tuyến →')}</Link><p className="muted">{t('Làm bài và xem phản hồi.')}</p></div><div className="stat"><Link href="/student/progress">{t('Tiến độ theo kỹ năng →')}</Link><p className="muted">{t('Kết quả và mục tiêu của bạn.')}</p></div></div> : <Loading {...state} />}<ClassList /></>;
 }
 function TeacherScreen({
   path,
@@ -63,6 +65,7 @@ export function ManagerApp() {
   return <Shell>{user => {
       if (user.role !== 'MANAGER') return <p>Trang này dành cho Manager.</p>;
       const [section] = path;
+      if (!section) return <ManagerDashboard user={user} />;
       if (section === 'accounts') return <AccountManagement />;
       if (section === 'courses') return <CourseManagement user={user} />;
       if (section === 'enrollments') return <EnrollmentManagement />;

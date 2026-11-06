@@ -1,8 +1,187 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useData, Loading, PageTitle, Form, Action, Table, Badge } from './ui';
 import { api, when, money } from '../lib/api';
+import { t } from '../lib/i18n';
+
+export function ManagerDashboard({ user }) {
+  const [period, setPeriod] = useState(
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7)
+  );
+  const state = useData('/manager/dashboard?period=' + period);
+
+  return (
+    <>
+      <div className="inline" style={{ marginBottom: 18 }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, width: 'auto' }}>
+          <strong>{t('Kỳ thống kê:')}</strong>{' '}
+          <input
+            type="month"
+            style={{ width: 170, display: 'inline-block' }}
+            value={period}
+            onChange={e => setPeriod(e.target.value)}
+          />
+        </label>
+      </div>
+
+      {!state.data ? (
+        <Loading {...state} />
+      ) : (
+        <>
+          {state.data.failed_emails_count > 0 && (
+            <div className="notice">
+              <span>⚠️ Có {state.data.failed_emails_count} email hệ thống gặp lỗi hoặc đang chờ thử lại.</span>
+              <Link href="/manager/emails">{t('Kiểm tra ngay →')}</Link>
+            </div>
+          )}
+
+          <div className="stats">
+            <div className="stat">
+              {t('Học viên')}
+              <strong>{state.data.total_students}</strong>
+              <small>{t('Học viên trong hệ thống')}</small>
+            </div>
+            <div className="stat">
+              {t('Giáo viên')}
+              <strong>{state.data.total_teachers}</strong>
+              <small>{t('Đang giảng dạy')}</small>
+            </div>
+            <div className="stat">
+              {t('Lớp đang mở')}
+              <strong>{state.data.active_classes}</strong>
+              <small>{t('IELTS & SAT')}</small>
+            </div>
+            <div className="stat">
+              {t('Doanh thu tháng')} ({period})
+              <strong style={{ color: 'var(--blue)' }}>{money(state.data.monthly_revenue)}</strong>
+              <small>{t('Lũy kế:')} {money(state.data.all_time_revenue)}</small>
+            </div>
+            <div className="stat">
+              {t('Ghi danh chờ duyệt')}
+              <strong style={{ color: state.data.pending_enrollment_count > 0 ? '#b91c1c' : 'inherit' }}>
+                {state.data.pending_enrollment_count}
+              </strong>
+              <small>{t('Cần xác nhận học phí / duyệt')}</small>
+            </div>
+            <div className="stat">
+              {t('Buổi dạy chờ duyệt lương')}
+              <strong style={{ color: state.data.pending_session_count > 0 ? '#d97706' : 'inherit' }}>
+                {state.data.pending_session_count}
+              </strong>
+              <small>{t('Giáo viên đã ghi nhận buổi')}</small>
+            </div>
+          </div>
+
+          <section className="card">
+            <div className="page-heading" style={{ marginBottom: 12 }}>
+              <h2>{t('Ghi danh & Học phí cần xử lý')} ({state.data.pending_enrollments.length})</h2>
+              <Link href="/manager/enrollments">{t('Xem toàn bộ →')}</Link>
+            </div>
+            {state.data.pending_enrollments.length === 0 ? (
+              <p className="empty">{t('Không có ghi danh nào đang chờ xử lý.')}</p>
+            ) : (
+              <Table
+                rows={state.data.pending_enrollments}
+                columns={[
+                  { key: 'student_name', label: 'Học viên' },
+                  { key: 'email', label: 'Email' },
+                  { key: 'class_code', label: 'Lớp' },
+                  { key: 'fee_snapshot', label: 'Học phí', render: r => money(r.fee_snapshot) },
+                  { key: 'payment_status', label: 'Thanh toán', render: r => <Badge value={r.payment_status} /> },
+                  { key: 'approved', label: 'Duyệt lớp', render: r => <Badge value={r.approved ? 'Đã duyệt' : 'Chờ duyệt'} /> },
+                  {
+                    key: 'action',
+                    label: 'Thao tác',
+                    render: () => <Link href="/manager/enrollments">{t('Xử lý ghi danh')}</Link>
+                  }
+                ]}
+              />
+            )}
+          </section>
+
+          <section className="card">
+            <div className="page-heading" style={{ marginBottom: 12 }}>
+              <h2>{t('Buổi dạy chờ duyệt chấm công & thù lao')} ({state.data.pending_sessions.length})</h2>
+              <Link href="/manager/payroll">{t('Mở Bảng lương →')}</Link>
+            </div>
+            {state.data.pending_sessions.length === 0 ? (
+              <p className="empty">{t('Tất cả buổi dạy đã được duyệt hoặc chưa có buổi mới ghi nhận.')}</p>
+            ) : (
+              <Table
+                rows={state.data.pending_sessions}
+                columns={[
+                  { key: 'teacher_name', label: 'Giáo viên' },
+                  { key: 'class_code', label: 'Lớp' },
+                  { key: 'title', label: 'Buổi học' },
+                  { key: 'starts_at', label: 'Thời gian', render: r => when(r.starts_at) },
+                  { key: 'duration_minutes', label: 'Thời lượng', render: r => r.duration_minutes + ' phút' },
+                  {
+                    key: 'approval',
+                    label: 'Phê duyệt lương',
+                    render: r => (
+                      <div className="inline">
+                        <Action
+                          className="primary"
+                          work={() =>
+                            api('/manager/sessions/' + r.session_id + '/approval', {
+                              method: 'PUT',
+                              body: { approved: true }
+                            }).then(() => state.reload())
+                          }
+                        >
+                          {t('Duyệt')}
+                        </Action>
+                        <Action
+                          work={() =>
+                            api('/manager/sessions/' + r.session_id + '/approval', {
+                              method: 'PUT',
+                              body: { approved: false }
+                            }).then(() => state.reload())
+                          }
+                        >
+                          {t('Từ chối')}
+                        </Action>
+                      </div>
+                    )
+                  }
+                ]}
+              />
+            )}
+          </section>
+
+          <section className="card">
+            <div className="page-heading" style={{ marginBottom: 12 }}>
+              <h2>{t('Lịch học & Sự kiện trung tâm sắp diễn ra (14 ngày tới)')}</h2>
+              <Link href="/manager/schedule">{t('Xem lịch chi tiết →')}</Link>
+            </div>
+            {state.data.upcoming_events.length === 0 ? (
+              <p className="empty">{t('Không có sự kiện nào trong 14 ngày tới.')}</p>
+            ) : (
+              <Table
+                rows={state.data.upcoming_events}
+                columns={[
+                  { key: 'title', label: 'Sự kiện / Tiết học' },
+                  { key: 'event_type', label: 'Loại', render: r => <Badge value={r.event_type} /> },
+                  { key: 'class_code', label: 'Lớp', render: r => r.class_code || 'Chung' },
+                  { key: 'teacher_name', label: 'Phụ trách', render: r => r.teacher_name || '—' },
+                  { key: 'starts_at', label: 'Bắt đầu', render: r => when(r.starts_at) },
+                  {
+                    key: 'action',
+                    label: 'Thao tác',
+                    render: () => <Link href="/manager/schedule">{t('Xem lịch')}</Link>
+                  }
+                ]}
+              />
+            )}
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
 export function AccountManagement() {
   const state = useData('/manager/accounts'),
     [edit, setEdit] = useState(null),

@@ -45,7 +45,7 @@ docker compose up -d --build
 - **Quản lý**: `manager@example.test`
 - **Giáo viên**: `teacher@example.test`
 - **Học viên**: `student@example.test`
-- **Mật khẩu chung**: `DemoPassword@123` *(hoặc giá trị cấu hình trong `DEMO_PASSWORD`)*
+- **Mật khẩu chung**: `abc@123` *(hoặc giá trị cấu hình trong `DEMO_PASSWORD`)*
 
 > **Lưu ý về MFA**: Trong môi trường Docker Compose mẫu, `MFA_REQUIRED=false` được bật sẵn để có thể đăng nhập ngay mà không cần cấu hình SMTP Server.
 
@@ -85,7 +85,7 @@ docker run -d \
   -e DB_AUTH=sql \
   -e DB_TRUST_SERVER_CERTIFICATE=true \
   -e MFA_REQUIRED=false \
-  -e DEMO_PASSWORD="DemoPassword@123" \
+  -e DEMO_PASSWORD="abc@123" \
   vela-web:latest
 ```
 
@@ -108,7 +108,7 @@ docker run -d \
 | `DB_ENCRYPT` | `true` | Bật mã hóa kết nối TLS với database |
 | `DB_TRUST_SERVER_CERTIFICATE` | `true` | Bỏ qua kiểm tra chứng chỉ tự ký của SQL Server trong Docker |
 | `DATA_KEY_HEX` | *(Tự sinh nếu trống)* | Khóa hex 64 ký tự (32 bytes) dùng mã hóa dữ liệu nhạy cảm |
-| `DEMO_PASSWORD` | `DemoPassword@123` | Mật khẩu cho các tài khoản seed demo ban đầu |
+| `DEMO_PASSWORD` | `abc@123` | Mật khẩu cho các tài khoản seed demo ban đầu |
 | `AUTO_MIGRATE` | `true` | Tự động chạy SQL migration khi container khởi động |
 | `AUTO_SEED` | `true` | Tự động tạo dữ liệu mẫu nếu database còn trống |
 | `MFA_REQUIRED` | `false` | Bật/tắt yêu cầu mã xác thực email khi đăng nhập |
