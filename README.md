@@ -23,5 +23,7 @@ docker compose up -d --build
 
 Tài khoản test:
 manager@example.test	DemoPassword@123	
-teacher@example.test	DemoPassword@123	
+
+teacher@example.test	DemoPassword@123
+
 student@example.test	DemoPassword@123	
