@@ -20,7 +20,7 @@ cd vela-web
 docker compose up -d --build
 ```
 
-- **Giao diện Web**: [http://localhost:3000](http://localhost:3000) (Trang đăng nhập: [http://localhost:3000/login](http://localhost:3000/login))
+- **Giao diện Web**: [http://localhost:3000](http://localhost:3000) 
 - **Backend API**: [http://localhost:4000](http://localhost:4000)
 
 Dừng dịch vụ:
