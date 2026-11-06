@@ -1,0 +1,32 @@
+{
+  "name": "teaching-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/server.ts",
+    "start": "node --env-file=.env src/server.ts",
+    "db:migrate": "node --env-file=.env scripts/migrate.ts",
+    "db:seed": "node --env-file=.env scripts/seed.ts",
+    "jobs": "node --env-file=.env src/jobs/worker.ts",
+    "test": "node --test ../../test/backend/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "mssql": "^11.0.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/mssql": "^9.1.7",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^7.0.0",
+    "typescript": "^5.9.0"
+  },
+  "optionalDependencies": {
+    "msnodesqlv8": "^6.2.2"
+  }
+}

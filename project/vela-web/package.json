@@ -1,0 +1,23 @@
+{
+  "name": "teaching-center",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web,jobs \"npm run dev -w backend\" \"npm run dev -w frontend\" \"npm run jobs -w backend\"",
+    "build": "npm run typecheck -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend",
+    "test": "npm run test -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "start": "concurrently -n api,web,jobs \"npm start -w backend\" \"npm start -w frontend\" \"npm run jobs -w backend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

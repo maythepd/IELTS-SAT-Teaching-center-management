@@ -1,0 +1,1 @@
+ **Chạy bằng Docker **: Xem hướng dẫn tại [project/vela-web/README.Docker.md](project/vela-web/README.Docker.md) hoặc cd IELTS-SAT-Teaching-center-management-main\project\vela-web r chạy `docker compose up -d --build`.

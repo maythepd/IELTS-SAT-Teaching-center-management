@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+.next-check/
+out/
+
+# Environment and sensitive keys
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Runtime data and logs
+backend/data/
+backend/logs/
+*.log
+artifacts/
+
+# OS files
+.DS_Store
+Thumbs.db
