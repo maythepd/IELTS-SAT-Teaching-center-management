@@ -21,9 +21,10 @@ docker compose up -d --build
 - **Giao diện Web**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:4000](http://localhost:4000)
 
-Tài khoản test:
-manager@example.test	DemoPassword@123	
+Tài khoản test: password đều là DemoPassword@123
 
-teacher@example.test	DemoPassword@123
+manager@example.test	
 
-student@example.test	DemoPassword@123	
+teacher@example.test	
+
+student@example.test	
