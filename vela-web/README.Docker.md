@@ -29,7 +29,7 @@ Docker Compose sẽ tự động khởi tạo SQL Server 2022 và `vela-web`:
 
 ```bash
 # Di chuyển vào thư mục vela-web
-cd IELTS-SAT-Teaching-center-management-main/project/vela-web
+cd vela-web
 
 # Build và khởi chạy các container
 docker compose up -d --build
@@ -66,7 +66,7 @@ docker compose down -v
 Để build image thủ công:
 
 ```bash
-cd IELTS-SAT-Teaching-center-management-main/project/vela-web
+cd vela-web
 docker build -t vela-web:latest .
 ```
 

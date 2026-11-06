@@ -20,7 +20,7 @@ services:
 
   vela-web:
     build:
-      context: ./IELTS-SAT-Teaching-center-management-main/project/vela-web
+      context: ./vela-web
       dockerfile: Dockerfile
     container_name: vela-web
     depends_on:
